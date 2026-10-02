@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.jump.lite"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.jump.lite"
         minSdk = 25
-        targetSdk = 35
+        targetSdk = 34
         versionCode = 462
         versionName = "4.6.2"
 

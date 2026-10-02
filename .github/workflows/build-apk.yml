@@ -20,18 +20,13 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
-      - name: Configurar Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
-
-      - name: Generar Wrapper y Compilar APK
+      - name: Compilar APK (Debug)
         run: |
           cd android
-          gradle wrapper
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Subir Artefacto APK
         uses: actions/upload-artifact@v4
