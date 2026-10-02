@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Jump</string>
+    <string name="vpn_service_description">Túnel de datos móviles seguro y cifrado con Jump VPN</string>
+    <string name="notification_channel_name">Servicio Jump VPN</string>
+    <string name="notification_channel_desc">Mantiene activo el túnel y muestra el estado de la conexión</string>
+    <string name="status_disconnected">DESCONECTADO</string>
+    <string name="status_connecting">CONECTANDO...</string>
+    <string name="status_injecting">INYECTANDO PAYLOAD...</string>
+    <string name="status_authenticating">AUTENTICANDO SSH...</string>
+    <string name="status_connected">CONECTADO</string>
+    <string name="status_reconnecting">RECONECTANDO...</string>
+    
+    <string name="btn_connect">CONECTAR</string>
+    <string name="btn_disconnect">DESCONECTAR</string>
+    
+    <!-- Modos de Túnel -->
+    <string name="mode_ssh_direct">SSH Directo</string>
+    <string name="mode_ssh_payload">SSH + HTTP Proxy (Payload)</string>
+    <string name="mode_ssh_ssl">SSH + SSL/TLS (SNI Bug)</string>
+    <string name="mode_ssh_ws">SSH + WebSocket (CDN Cloudflare)</string>
+    <string name="mode_v2ray">V2Ray / VMess Core</string>
+</resources>

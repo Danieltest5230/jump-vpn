@@ -1,0 +1,12 @@
+[
+  {
+    "username": "usuario_demo",
+    "password": "nueva_clave_secreta",
+    "createdAt": "2026-10-02T11:46:05.419Z",
+    "expiresAt": "2026-11-01T11:46:05.420Z",
+    "daysGranted": 30,
+    "status": "ACTIVE",
+    "maxConnections": 1,
+    "note": "Cuenta de prueba inicial"
+  }
+]

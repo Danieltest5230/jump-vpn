@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jump VPN - Mobile Studio & Live Simulator</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="desktop-layout">
+    <!-- Panel Izquierdo: Información y Generador de Payloads -->
+    <aside class="sidebar-panel">
+      <div class="panel-header">
+        <div class="brand">
+          <span class="brand-icon">⚡</span>
+          <div>
+            <h1>JUMP VPN</h1>
+            <span class="version-tag">v4.6.2 Lite • SSH T Architecture</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <h3>🛠️ Generador e Inyector de Payloads</h3>
+        <p class="card-desc">Crea payloads HTTP / WebSocket para evadir restricciones de operadoras móviles.</p>
+
+        <div class="form-group">
+          <label for="bugHostInput">URL / Bug Host (SNI):</label>
+          <input type="text" id="bugHostInput" placeholder="portal.operadora.com" value="whatsapp.net">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="methodSelect">Método:</label>
+            <select id="methodSelect">
+              <option value="CONNECT">CONNECT</option>
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="HEAD">HEAD</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="injectionSelect">Inyección:</label>
+            <select id="injectionSelect">
+              <option value="NORMAL">Normal</option>
+              <option value="FRONT">Front Inject</option>
+              <option value="BACK">Back Inject</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="checkbox-grid">
+          <label class="check-container">
+            <input type="checkbox" id="cbOnlineHost" checked>
+            <span class="checkmark"></span>
+            Online Host
+          </label>
+          <label class="check-container">
+            <input type="checkbox" id="cbKeepAlive" checked>
+            <span class="checkmark"></span>
+            Keep-Alive
+          </label>
+          <label class="check-container">
+            <input type="checkbox" id="cbForwardHost">
+            <span class="checkmark"></span>
+            Forward Host
+          </label>
+          <label class="check-container">
+            <input type="checkbox" id="cbUserAgent" checked>
+            <span class="checkmark"></span>
+            User-Agent
+          </label>
+        </div>
+
+        <div class="button-group">
+          <button class="btn btn-secondary" id="btnGenHttp">Generar HTTP</button>
+          <button class="btn btn-accent" id="btnGenWs">Generar WS (CDN)</button>
+        </div>
+
+        <div class="form-group" style="margin-top: 12px;">
+          <label>Payload Resultante:</label>
+          <textarea id="payloadResultText" class="code-area" rows="3" readonly></textarea>
+        </div>
+
+        <button class="btn btn-primary" id="btnApplyToApp" style="width: 100%;">
+          ⚡ Aplicar al Teléfono Móvil
+        </button>
+      </div>
+
+      <!-- Presets de Operadoras -->
+      <div class="panel-card presets-card">
+        <h3>📱 Presets Rápidos (Bypass Móvil)</h3>
+        <div class="presets-buttons">
+          <button class="btn-preset" data-mode="SSH_PROXY_PAYLOAD" data-bug="claro.com.ar" data-port="8080">Claro Direct</button>
+          <button class="btn-preset" data-mode="SSH_SSL_SNI" data-bug="c.whatsapp.net" data-port="443">WhatsApp SNI (SSL)</button>
+          <button class="btn-preset" data-mode="SSH_WEBSOCKET_CDN" data-bug="zoom.us" data-port="80">Cloudflare WS (Zoom)</button>
+          <button class="btn-preset" data-mode="SSH_DIRECT" data-bug="" data-port="22">SSH Directo</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Centro: Mockup Móvil Interactivo -->
+    <main class="phone-mockup-wrapper">
+      <div class="phone-container">
+        <!-- Barra de estado del móvil -->
+        <div class="phone-status-bar">
+          <span class="time" id="mobileClock">08:30</span>
+          <div class="notch"></div>
+          <div class="icons">
+            <span class="vpn-key-icon" id="vpnKeyIcon">🔑</span>
+            <span>📶</span>
+            <span>🔋 94%</span>
+          </div>
+        </div>
+
+        <!-- Contenido de la App Jump Móvil -->
+        <div class="app-screen">
+          <!-- Header de la App -->
+          <header class="app-header">
+            <div>
+              <div class="app-title">JUMP</div>
+              <div class="app-subtitle">v4.6.2 Lite • SSH T PROJECT</div>
+            </div>
+            <div class="status-badge disconnected" id="appStatusBadge">
+              DESCONECTADO
+            </div>
+          </header>
+
+          <!-- Tarjeta de Modo de Túnel -->
+          <div class="app-card">
+            <div class="card-label">MÉTODO DE TÚNEL</div>
+            <select class="app-select" id="appTunnelModeSelect">
+              <option value="SSH_PROXY_PAYLOAD">SSH + HTTP Proxy (Payload)</option>
+              <option value="SSH_SSL_SNI">SSH + SSL/TLS (SNI Bug)</option>
+              <option value="SSH_WEBSOCKET_CDN">SSH + WebSocket (CDN Cloudflare)</option>
+              <option value="SSH_DIRECT">SSH Directo</option>
+              <option value="V2RAY_VMESS">V2Ray / VMess Core</option>
+            </select>
+          </div>
+
+          <!-- Tarjeta de Servidor Activo -->
+          <div class="app-card server-card" id="appServerCard">
+            <div class="server-icon">🚀</div>
+            <div class="server-info">
+              <div class="server-title" id="appServerName">Servidor LATAM #1</div>
+              <div class="server-sub" id="appServerSub">104.16.1.1:80 • BadVPN 7300</div>
+            </div>
+            <div class="ping-tag" id="appPingTag">-- ms</div>
+          </div>
+
+          <!-- Hero Button: Conectar / Desconectar -->
+          <div class="hero-button-wrapper">
+            <button class="hero-power-btn state-disconnected" id="appConnectBtn">
+              <div class="btn-ripple"></div>
+              <span class="btn-icon">⚡</span>
+              <span class="btn-label" id="appBtnText">CONECTAR</span>
+            </button>
+          </div>
+
+          <!-- Métricas de Tráfico en Tiempo Real -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-label">↓ DESCARGA</div>
+              <div class="metric-value green" id="metricDownload">0.0 KB/s</div>
+              <div class="metric-total" id="metricTotalDown">0 MB</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">↑ SUBIDA</div>
+              <div class="metric-value cyan" id="metricUpload">0.0 KB/s</div>
+              <div class="metric-total" id="metricTotalUp">0 MB</div>
+            </div>
+          </div>
+
+          <!-- Botones de Acción -->
+          <div class="actions-row">
+            <button class="action-btn" id="modalPayloadBtn">Payload</button>
+            <button class="action-btn" id="modalServerBtn">Servidor</button>
+            <button class="action-btn" id="clearLogsBtn">Limpiar</button>
+          </div>
+
+          <!-- Consola de Logs en Vivo -->
+          <div class="logs-card">
+            <div class="logs-header">
+              <span>REGISTRO DE RED (LOGS)</span>
+              <span class="live-dot" id="liveDot"></span>
+            </div>
+            <div class="logs-terminal" id="logsTerminal">
+              <div class="log-line info">[08:30:00] Jump VPN listo para conectar.</div>
+              <div class="log-line system">[08:30:00] Kernel: VpnService API 35 inicializado.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barra inferior del móvil -->
+        <div class="phone-nav-bar">
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Panel Derecho: Parámetros del Servidor y Exportación .jump -->
+    <aside class="sidebar-panel">
+      <div class="panel-card">
+        <h3>⚙️ Servidor SSH Remoto</h3>
+        <p class="card-desc">Credenciales del túnel SSH / VPS destino.</p>
+
+        <div class="form-group">
+          <label for="srvHost">Host / IP del Servidor:</label>
+          <input type="text" id="srvHost" value="198.51.100.45">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="srvPort">Puerto SSH:</label>
+            <input type="number" id="srvPort" value="22">
+          </div>
+          <div class="form-group">
+            <label for="srvUdpPort">BadVPN UDPGW:</label>
+            <input type="number" id="srvUdpPort" value="7300">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="srvUser">Usuario:</label>
+            <input type="text" id="srvUser" value="jump">
+          </div>
+          <div class="form-group">
+            <label for="srvPass">Contraseña:</label>
+            <input type="password" id="srvPass" value="jump123">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="srvSni">SNI Bug Host (SSL):</label>
+          <input type="text" id="srvSni" value="c.whatsapp.net">
+        </div>
+
+        <button class="btn btn-primary" id="btnUpdateServer" style="width: 100%;">
+          Guardar Ajustes
+        </button>
+      </div>
+
+      <div class="panel-card">
+        <h3>📦 Perfil de Configuración (.jump)</h3>
+        <p class="card-desc">Exporta o importa configuraciones para compartir con otros usuarios de Jump VPN.</p>
+
+        <button class="btn btn-secondary" id="btnExportJump" style="width: 100%; margin-bottom: 8px;">
+          💾 Descargar Archivo .jump
+        </button>
+        <button class="btn btn-accent" id="btnImportJump" style="width: 100%;">
+          📂 Importar Archivo .jump
+        </button>
+        <input type="file" id="fileInputJump" accept=".jump,.json" style="display: none;">
+      </div>
+
+      <div class="panel-card">
+        <h3>🛡️ Ficha Técnica Jump</h3>
+        <ul class="specs-list">
+          <li><strong>Package:</strong> com.jump.lite</li>
+          <li><strong>Versión:</strong> 4.6.2 (Mayo 2026)</li>
+          <li><strong>Permisos:</strong> 18 permisos Android</li>
+          <li><strong>Arquitectura:</strong> arm64-v8a / armeabi-v7a</li>
+          <li><strong>Core:</strong> VpnService + JSch + Tun2Socks</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

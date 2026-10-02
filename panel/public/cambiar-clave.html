@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal de Usuarios - Jump VPN</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Barra Superior -->
+  <header class="top-nav">
+    <div class="brand">
+      <span class="brand-icon">⚡</span>
+      <span class="brand-name">JUMP VPN</span>
+      <span class="portal-tag">PORTAL DEL USUARIO</span>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card center-box">
+      <h2>🔑 Cambiar mi Contraseña</h2>
+      <p class="card-desc">Ingresa tu usuario y tu clave actual para establecer una nueva contraseña personal.</p>
+
+      <div class="alert alert-success" id="alertSuccess"></div>
+      <div class="alert alert-error" id="alertError"></div>
+
+      <div class="form-group">
+        <label for="inputUser">Tu Usuario:</label>
+        <input type="text" id="inputUser" placeholder="ej: carlos_jump">
+      </div>
+
+      <div class="form-group">
+        <label for="inputCurrentPass">Contraseña Actual:</label>
+        <input type="password" id="inputCurrentPass" placeholder="Tu clave actual">
+      </div>
+
+      <div class="form-group">
+        <label for="inputNewPass">Nueva Contraseña:</label>
+        <input type="password" id="inputNewPass" placeholder="Mínimo 4 caracteres">
+      </div>
+
+      <div class="form-group">
+        <label for="inputConfirmPass">Repetir Nueva Contraseña:</label>
+        <input type="password" id="inputConfirmPass" placeholder="Confirma tu nueva clave">
+      </div>
+
+      <button class="btn btn-primary" id="btnChangePassword" style="width: 100%; margin-top: 8px;">
+        Actualizar mi Contraseña
+      </button>
+
+      <!-- Consultar tiempo restante -->
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-subtle); text-align: center;">
+        <button class="btn btn-sm btn-success" id="btnCheckExpiry" style="width: 100%;">
+          ⏳ Consultar mis Días Restantes
+        </button>
+        <div id="expiryResult" style="margin-top: 12px; font-size: 13px; font-weight: 600; color: #00E5FF; display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const alertSuccess = document.getElementById('alertSuccess');
+    const alertError = document.getElementById('alertError');
+
+    document.getElementById('btnChangePassword').addEventListener('click', async () => {
+      const username = document.getElementById('inputUser').value.trim();
+      const currentPassword = document.getElementById('inputCurrentPass').value;
+      const newPassword = document.getElementById('inputNewPass').value;
+      const confirmPassword = document.getElementById('inputConfirmPass').value;
+
+      alertSuccess.style.display = 'none';
+      alertError.style.display = 'none';
+
+      if (!username || !currentPassword || !newPassword) {
+        alertError.style.display = 'block';
+        alertError.textContent = 'Por favor completa todos los campos';
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        alertError.style.display = 'block';
+        alertError.textContent = 'Las nuevas contraseñas no coinciden';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/user/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, currentPassword, newPassword })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          alertSuccess.style.display = 'block';
+          alertSuccess.textContent = data.message;
+          document.getElementById('inputCurrentPass').value = '';
+          document.getElementById('inputNewPass').value = '';
+          document.getElementById('inputConfirmPass').value = '';
+        } else {
+          alertError.style.display = 'block';
+          alertError.textContent = data.error || 'Error al cambiar la contraseña';
+        }
+      } catch (err) {
+        alertError.style.display = 'block';
+        alertError.textContent = 'Error de conexión con el servidor Jump';
+      }
+    });
+
+    document.getElementById('btnCheckExpiry').addEventListener('click', async () => {
+      const username = document.getElementById('inputUser').value.trim();
+      const expiryDiv = document.getElementById('expiryResult');
+      expiryDiv.style.display = 'none';
+
+      if (!username) {
+        alert('Escribe tu usuario primero para consultar tus días.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/user/check/${encodeURIComponent(username)}`);
+        const data = await res.json();
+
+        if (res.ok) {
+          expiryDiv.style.display = 'block';
+          if (data.isExpired) {
+            expiryDiv.style.color = '#EF4444';
+            expiryDiv.textContent = `⚠️ Tu cuenta '${data.username}' ha expirado. Contacta al administrador para renovarla.`;
+          } else {
+            expiryDiv.style.color = '#10B981';
+            const dateStr = new Date(data.expiresAt).toLocaleDateString('es-ES', {
+              year: 'numeric', month: 'long', day: 'numeric'
+            });
+            expiryDiv.textContent = `✓ Te quedan ${data.remainingDays} días de servicio (Vence el ${dateStr}).`;
+          }
+        } else {
+          alert(data.error || 'Usuario no encontrado');
+        }
+      } catch (err) {
+        alert('Error al verificar');
+      }
+    });
+  </script>
+</body>
+</html>

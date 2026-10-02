@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Administración - Jump VPN</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Barra Superior -->
+  <header class="top-nav">
+    <div class="brand">
+      <span class="brand-icon">⚡</span>
+      <span class="brand-name">JUMP VPN</span>
+      <span class="portal-tag">ADMIN PORTAL</span>
+    </div>
+    <div id="navActions" style="display: none; gap: 12px; align-items: center;">
+      <a href="/cambiar-clave" target="_blank" class="btn btn-sm btn-success">
+        🔑 Portal de Usuarios
+      </a>
+      <button class="btn btn-sm btn-danger" id="btnLogout">Cerrar Sesión</button>
+    </div>
+  </header>
+
+  <!-- Login de Administrador -->
+  <div class="container" id="loginSection">
+    <div class="card center-box">
+      <h2>Acceso Administrador</h2>
+      <p class="card-desc">Ingresa tus credenciales maestras para gestionar usuarios de Jump VPN.</p>
+
+      <div class="alert alert-error" id="loginError"></div>
+
+      <div class="form-group">
+        <label for="adminUser">Usuario:</label>
+        <input type="text" id="adminUser" value="admin">
+      </div>
+
+      <div class="form-group">
+        <label for="adminPass">Contraseña:</label>
+        <input type="password" id="adminPass" value="jumpadmin2026">
+      </div>
+
+      <button class="btn btn-primary" id="btnLogin" style="width: 100%;">
+        Iniciar Sesión
+      </button>
+    </div>
+  </div>
+
+  <!-- Dashboard Principal de Gestión -->
+  <div class="container" id="dashboardSection" style="display: none;">
+    
+    <!-- Formulario para Crear Usuario -->
+    <div class="card">
+      <h2>➕ Crear Nuevo Usuario para Jump VPN</h2>
+      <p class="card-desc">Establece el usuario, contraseña inicial y el tiempo de vigencia.</p>
+
+      <div class="alert alert-success" id="createUserSuccess"></div>
+      <div class="alert alert-error" id="createUserError"></div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="newUsername">Nombre de Usuario:</label>
+          <input type="text" id="newUsername" placeholder="ej: carlos_jump">
+        </div>
+        <div class="form-group">
+          <label for="newPassword">Contraseña Inicial:</label>
+          <input type="text" id="newPassword" placeholder="ej: clave2026">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Días de Duración / Límite de Tiempo:</label>
+          <input type="number" id="newDays" value="30" min="1" max="365">
+          <div class="days-chips">
+            <button type="button" class="chip-btn" data-days="7">7 Días</button>
+            <button type="button" class="chip-btn" data-days="15">15 Días</button>
+            <button type="button" class="chip-btn active" data-days="30">30 Días (1 Mes)</button>
+            <button type="button" class="chip-btn" data-days="60">60 Días (2 Meses)</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="newNote">Nota / Teléfono del Cliente (Opcional):</label>
+          <input type="text" id="newNote" placeholder="ej: +54 9 11 2345-6789 - Juan">
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btnCreateUser">
+        Crear Cuenta de Usuario
+      </button>
+    </div>
+
+    <!-- Lista de Usuarios y Estado -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h2>👥 Usuarios Registrados</h2>
+          <p class="card-desc" style="margin-bottom: 0;">Supervisa los días restantes, vence y contraseñas actuales.</p>
+        </div>
+        <button class="btn btn-sm btn-primary" id="btnRefresh">🔄 Actualizar</button>
+      </div>
+
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Contraseña</th>
+              <th>Días Restantes</th>
+              <th>Fecha de Vencimiento</th>
+              <th>Estado</th>
+              <th>Nota</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <!-- Dinámico -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let token = localStorage.getItem('jump_admin_token') || '';
+
+    const loginSection = document.getElementById('loginSection');
+    const dashboardSection = document.getElementById('dashboardSection');
+    const navActions = document.getElementById('navActions');
+    const usersTableBody = document.getElementById('usersTableBody');
+
+    // Presets de Días
+    document.querySelectorAll('.chip-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('newDays').value = btn.dataset.days;
+      });
+    });
+
+    // Iniciar Sesión
+    document.getElementById('btnLogin').addEventListener('click', async () => {
+      const username = document.getElementById('adminUser').value;
+      const password = document.getElementById('adminPass').value;
+      const errorDiv = document.getElementById('loginError');
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          token = data.token;
+          localStorage.setItem('jump_admin_token', token);
+          showDashboard();
+        } else {
+          errorDiv.style.display = 'block';
+          errorDiv.textContent = data.error || 'Credenciales incorrectas';
+        }
+      } catch (err) {
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = 'Error al conectar con el servidor';
+      }
+    });
+
+    document.getElementById('btnLogout').addEventListener('click', () => {
+      token = '';
+      localStorage.removeItem('jump_admin_token');
+      loginSection.style.display = 'block';
+      dashboardSection.style.display = 'none';
+      navActions.style.display = 'none';
+    });
+
+    function showDashboard() {
+      loginSection.style.display = 'none';
+      dashboardSection.style.display = 'block';
+      navActions.style.display = 'flex';
+      loadUsers();
+    }
+
+    // Cargar Usuarios
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/admin/users', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.status === 401) {
+          document.getElementById('btnLogout').click();
+          return;
+        }
+        const users = await res.json();
+        renderUsers(users);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderUsers(users) {
+      usersTableBody.innerHTML = '';
+      if (users.length === 0) {
+        usersTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94A3B8;">No hay usuarios creados aún.</td></tr>';
+        return;
+      }
+
+      users.forEach(u => {
+        const tr = document.createElement('tr');
+        
+        let badgeClass = 'badge-active';
+        let badgeText = 'ACTIVO';
+
+        if (u.status === 'EXPIRED' || u.remainingDays <= 0) {
+          badgeClass = 'badge-expired';
+          badgeText = 'EXPIRADO';
+        } else if (u.remainingDays <= 5) {
+          badgeClass = 'badge-warning';
+          badgeText = `${u.remainingDays} DÍAS`;
+        }
+
+        const expDate = new Date(u.expiresAt).toLocaleDateString('es-ES', {
+          year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+
+        tr.innerHTML = `
+          <td><span class="user-tag">${u.username}</span></td>
+          <td><code style="color: #00E5FF;">${u.password}</code></td>
+          <td><strong>${u.remainingDays} días</strong></td>
+          <td>${expDate}</td>
+          <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+          <td style="color: #94A3B8; font-size: 11px;">${u.note || '-'}</td>
+          <td>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-sm btn-success" onclick="renewUser('${u.username}')">+30 Días</button>
+              <button class="btn btn-sm btn-primary" onclick="copyUserData('${u.username}', '${u.password}', '${u.remainingDays}')">Copiar</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.username}')">Borrar</button>
+            </div>
+          </td>
+        `;
+        usersTableBody.appendChild(tr);
+      });
+    }
+
+    // Crear Usuario
+    document.getElementById('btnCreateUser').addEventListener('click', async () => {
+      const username = document.getElementById('newUsername').value;
+      const password = document.getElementById('newPassword').value;
+      const days = document.getElementById('newDays').value;
+      const note = document.getElementById('newNote').value;
+
+      const successDiv = document.getElementById('createUserSuccess');
+      const errorDiv = document.getElementById('createUserError');
+      successDiv.style.display = 'none';
+      errorDiv.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ username, password, days, note })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          successDiv.style.display = 'block';
+          successDiv.textContent = `¡Usuario '${username}' creado con éxito por ${days} días!`;
+          document.getElementById('newUsername').value = '';
+          document.getElementById('newPassword').value = '';
+          loadUsers();
+        } else {
+          errorDiv.style.display = 'block';
+          errorDiv.textContent = data.error || 'Error al crear usuario';
+        }
+      } catch (err) {
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = 'Error de conexión';
+      }
+    });
+
+    // Renovar (+30 días)
+    window.renewUser = async (username) => {
+      if (!confirm(`¿Renovar 30 días adicionales a '${username}'?`)) return;
+      try {
+        const res = await fetch(`/api/admin/users/${username}/renew`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ extraDays: 30 })
+        });
+        if (res.ok) {
+          alert(`Usuario '${username}' renovado con éxito.`);
+          loadUsers();
+        }
+      } catch (err) {
+        alert('Error al renovar');
+      }
+    };
+
+    // Borrar Usuario
+    window.deleteUser = async (username) => {
+      if (!confirm(`¿Estás seguro de eliminar al usuario '${username}'?`)) return;
+      try {
+        const res = await fetch(`/api/admin/users/${username}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          loadUsers();
+        }
+      } catch (err) {
+        alert('Error al eliminar');
+      }
+    };
+
+    // Copiar mensaje para enviar por WhatsApp
+    window.copyUserData = (user, pass, days) => {
+      const msg = `⚡ *Datos de Conexión Jump VPN* ⚡\n\n👤 *Usuario:* ${user}\n🔑 *Contraseña:* ${pass}\n⏳ *Vigencia:* ${days} días\n\n👉 Puedes cambiar tu contraseña en cualquier momento aquí:\n${window.location.origin}/cambiar-clave`;
+      navigator.clipboard.writeText(msg);
+      alert('¡Datos copiados al portapapeles! Ya puedes pegarlos en WhatsApp o enviárselos al cliente.');
+    };
+
+    document.getElementById('btnRefresh').addEventListener('click', loadUsers);
+
+    // Auto-login si ya hay token
+    if (token) {
+      showDashboard();
+    }
+  </script>
+</body>
+</html>

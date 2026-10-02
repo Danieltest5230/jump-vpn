@@ -1,0 +1,23 @@
+<resources>
+    <!-- Paleta Oscura Futurista Jump VPN -->
+    <color name="bg_main">#0B0F19</color>
+    <color name="bg_card">#121929</color>
+    <color name="bg_card_lighter">#1E293B</color>
+    <color name="border_glass">#2A364F</color>
+
+    <!-- Colores de Acento y Estados -->
+    <color name="primary_electric">#00E5FF</color>
+    <color name="primary_variant">#00B0FF</color>
+    <color name="accent_neon">#7C3AED</color>
+    <color name="status_green">#10B981</color>
+    <color name="status_yellow">#F59E0B</color>
+    <color name="status_red">#EF4444</color>
+    
+    <!-- Texto -->
+    <color name="text_primary">#F8FAFC</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_muted">#64748B</color>
+    
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+</resources>

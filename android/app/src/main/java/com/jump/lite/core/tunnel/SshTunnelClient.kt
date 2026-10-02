@@ -1,0 +1,127 @@
+package com.jump.lite.core.tunnel
+
+import com.jcraft.jsch.JSch
+import com.jcraft.jsch.Session
+import com.jcraft.jsch.SocketFactory
+import com.jump.lite.model.TunnelMode
+import com.jump.lite.model.VpnProfile
+import java.io.InputStream
+import java.io.OutputStream
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.util.Properties
+
+class SshTunnelClient(
+    private val profile: VpnProfile,
+    private val localSocksPort: Int = 1080,
+    private val onLog: (String) -> Unit
+) {
+    private var session: Session? = null
+    private var isRunning = false
+
+    fun start() {
+        try {
+            onLog("Iniciando cliente SSH Jump...")
+            val jsch = JSch()
+
+            session = jsch.getSession(profile.sshUser, profile.serverHost, profile.serverPort)
+            session?.setPassword(profile.sshPass)
+
+            val config = Properties()
+            config["StrictHostKeyChecking"] = "no"
+            config["PreferredAuthentications"] = "password,keyboard-interactive"
+            session?.setConfig(config)
+
+            // Configurar SocketFactory según el modo de túnel
+            when (profile.tunnelMode) {
+                TunnelMode.SSH_DIRECT -> {
+                    onLog("Modo: Conexión directa TCP...")
+                }
+                TunnelMode.SSH_SSL_SNI -> {
+                    onLog("Modo: SSL/TLS con SNI Bug: ${profile.sniHost}")
+                    session?.setSocketFactory(object : SocketFactory {
+                        private var sock: Socket? = null
+                        override fun createSocket(host: String?, port: Int): Socket {
+                            val s = SslSniSocket.createSocket(
+                                profile.serverHost,
+                                profile.serverPort,
+                                profile.sniHost
+                            )
+                            sock = s
+                            return s
+                        }
+                        override fun getInputStream(socket: Socket?): InputStream = socket!!.getInputStream()
+                        override fun getOutputStream(socket: Socket?): OutputStream = socket!!.getOutputStream()
+                    })
+                }
+                TunnelMode.SSH_WEBSOCKET_CDN -> {
+                    onLog("Modo: WebSocket Cloudflare CDN...")
+                    session?.setSocketFactory(object : SocketFactory {
+                        private var sock: Socket? = null
+                        override fun createSocket(host: String?, port: Int): Socket {
+                            val s = WebSocketTunnel.openUpgradeSocket(profile, onLog)
+                            sock = s
+                            return s
+                        }
+                        override fun getInputStream(socket: Socket?): InputStream = socket!!.getInputStream()
+                        override fun getOutputStream(socket: Socket?): OutputStream = socket!!.getOutputStream()
+                    })
+                }
+                TunnelMode.SSH_PROXY_PAYLOAD -> {
+                    onLog("Modo: HTTP Proxy con inyección de Payload...")
+                    session?.setSocketFactory(object : SocketFactory {
+                        private var sock: Socket? = null
+                        override fun createSocket(host: String?, port: Int): Socket {
+                            val s = Socket()
+                            s.connect(
+                                InetSocketAddress(profile.remoteProxyHost, profile.remoteProxyPort),
+                                10000
+                            )
+                            val out = s.getOutputStream()
+                            val payload = com.jump.lite.core.payload.PayloadEngine.parse(profile.payload, profile)
+                            out.write(payload.toByteArray(Charsets.UTF_8))
+                            out.flush()
+                            sock = s
+                            return s
+                        }
+                        override fun getInputStream(socket: Socket?): InputStream = socket!!.getInputStream()
+                        override fun getOutputStream(socket: Socket?): OutputStream = socket!!.getOutputStream()
+                    })
+                }
+                TunnelMode.V2RAY_VMESS -> {
+                    onLog("Modo: V2Ray Core...")
+                }
+            }
+
+            onLog("Autenticando usuario '${profile.sshUser}'...")
+            session?.connect(30000)
+
+            if (session?.isConnected == true) {
+                onLog("SSH Conectado exitosamente!")
+                val boundPort = session?.setPortForwardingD(localSocksPort)
+                onLog("Enrutador SOCKS5 activo en 127.0.0.1:$boundPort")
+                isRunning = true
+            } else {
+                throw IllegalStateException("No se pudo establecer la sesión SSH")
+            }
+
+        } catch (e: Exception) {
+            onLog("Error en túnel SSH: ${e.message}")
+            stop()
+            throw e
+        }
+    }
+
+    fun stop() {
+        isRunning = false
+        try {
+            session?.disconnect()
+            session = null
+            onLog("Túnel SSH cerrado.")
+        } catch (e: Exception) {
+            // Ignorar errores al cerrar
+        }
+    }
+
+    fun isConnected(): Boolean = session?.isConnected == true && isRunning
+}

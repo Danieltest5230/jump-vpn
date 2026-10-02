@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: jump-vpn-panel
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASS
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
