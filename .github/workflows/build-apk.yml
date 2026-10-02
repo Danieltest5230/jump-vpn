@@ -27,12 +27,13 @@ jobs:
 
       - name: Compilar APK (Debug)
         run: |
+          set -e -o pipefail
           cd android
           sed -i -e 's/\r$//' gradlew
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log || {
+          ./gradlew :app:assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log || {
             echo "::error::Fallo en la compilación de Gradle"
-            grep -E "(e: |error:|FAILURE:|FAILED)" build.log | head -n 10 | while IFS= read -r line; do
+            grep -E "(e: |error:|FAILURE:|FAILED)" build.log | head -n 15 | while IFS= read -r line; do
               echo "::error::$line"
             done
             exit 1
@@ -43,11 +44,11 @@ jobs:
           find . -name "*.apk" -exec cp -v {} ../dist/Jump-VPN-v4.6.2.apk \;
           ls -la ../dist
 
-      - name: Subir Log en caso de fallo
-        if: failure()
+      - name: Subir Log de Compilación
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gradle-failure-log
+          name: gradle-build-log
           path: android/build.log
 
       - name: Subir Artefacto APK
