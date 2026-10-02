@@ -20,16 +20,17 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
 
-      - name: Dar permisos de ejecución a Gradlew
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Generar Wrapper y Compilar APK
         run: |
           cd android
-          chmod +x gradlew || gradle wrapper --gradle-version 8.7
-
-      - name: Compilar APK (Release / Debug)
-        run: |
-          cd android
+          gradle wrapper
+          chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
       - name: Subir Artefacto APK
