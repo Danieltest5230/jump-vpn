@@ -414,6 +414,15 @@ app.get('/cambiar-clave', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'cambiar-clave.html'));
 });
 
+// Descarga directa del APK de la App Jump VPN
+app.get('/descargar', (req, res) => {
+  res.redirect('https://github.com/Danieltest5230/jump-vpn/releases/download/v4.6.2/Jump-VPN-v4.6.2.apk');
+});
+
+app.get('/download', (req, res) => {
+  res.redirect('https://github.com/Danieltest5230/jump-vpn/releases/download/v4.6.2/Jump-VPN-v4.6.2.apk');
+});
+
 app.listen(PORT, () => {
   console.log(`====================================================`);
   console.log(`  🚀 Panel Jump VPN corriendo en puerto ${PORT}`);

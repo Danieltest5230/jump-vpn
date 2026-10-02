@@ -7,6 +7,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,6 +37,11 @@ jobs:
             done
             exit 1
           }
+          echo "Buscando APKs generados..."
+          find . -name "*.apk"
+          mkdir -p ../dist
+          find . -name "*.apk" -exec cp -v {} ../dist/Jump-VPN-v4.6.2.apk \;
+          ls -la ../dist
 
       - name: Subir Log en caso de fallo
         if: failure()
@@ -47,4 +55,25 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Jump-VPN-v4.6.2-Debug-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: dist/Jump-VPN-v4.6.2.apk
+          if-no-files-found: warn
+
+      - name: Publicar Release Oficial con APK Directo
+        if: success() && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v4.6.2
+          name: Jump VPN v4.6.2 Lite (APK Oficial)
+          body: |
+            ### ⚡ Jump VPN v4.6.2 Lite - Instalador Oficial Android
+            - **Descarga directa:** Haz clic en `Jump-VPN-v4.6.2.apk` para instalar directamente en tu teléfono Android.
+            - **Compatibilidad:** Android 7.0 (Nougat) a Android 14+ (Upside Down Cake).
+            - **Protocolos integrados:**
+              - SSH Directo
+              - SSH + HTTP Proxy (Inyección de Payload)
+              - SSH + SSL/TLS (SNI Bug Spoofer)
+              - SSH + WebSocket (Cloudflare CDN 101 Switching Protocols)
+            - **Seguridad:** Enrutador de paquetes TUN 10.0.0.2/24 con DNS personalizables y reconexión automática.
+          files: dist/Jump-VPN-v4.6.2.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
