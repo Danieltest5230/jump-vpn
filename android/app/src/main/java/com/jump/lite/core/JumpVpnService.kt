@@ -10,6 +10,7 @@ import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import androidx.core.app.NotificationCompat
+import com.jump.lite.R
 import com.jump.lite.model.ConnectionState
 import com.jump.lite.model.VpnProfile
 import com.jump.lite.ui.MainActivity
@@ -222,11 +223,11 @@ class JumpVpnService : VpnService() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("Jump VPN - 4.6.2")
             .setContentText(text)
             .setContentIntent(contentIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Desconectar", disconnectIntent)
+            .addAction(android.R.drawable.ic_delete, "Desconectar", disconnectIntent)
             .setOngoing(state == ConnectionState.CONNECTED || state == ConnectionState.CONNECTING)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
