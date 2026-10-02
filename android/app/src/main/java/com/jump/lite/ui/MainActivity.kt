@@ -101,11 +101,12 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         val filter = IntentFilter(JumpVpnService.BROADCAST_STATUS)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(vpnBroadcastReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(vpnBroadcastReceiver, filter)
-        }
+        ContextCompat.registerReceiver(
+            this,
+            vpnBroadcastReceiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         if (JumpVpnService.isServiceRunning) {
             updateConnectionUi(ConnectionState.CONNECTED)

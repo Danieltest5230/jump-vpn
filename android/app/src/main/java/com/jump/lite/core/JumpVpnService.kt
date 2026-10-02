@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
@@ -64,7 +65,7 @@ class JumpVpnService : VpnService() {
             return START_NOT_STICKY
         }
 
-        if (action == ACTION_CONNECT) {
+        if (action == ACTION_CONNECT && intent != null) {
             val profile = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 intent.getSerializableExtra(EXTRA_PROFILE, VpnProfile::class.java)
             } else {
@@ -131,8 +132,8 @@ class JumpVpnService : VpnService() {
     private fun startTrafficMonitor() {
         serviceScope.launch {
             val vpnFd = vpnInterface?.fileDescriptor ?: return@launch
-            val `in` = FileInputStream(vpnFd)
-            val out = FileOutputStream(vpnFd)
+            val inputStream = FileInputStream(vpnFd)
+            val outputStream = FileOutputStream(vpnFd)
             val buffer = ByteArray(32768)
 
             while (isActive && isServiceRunning) {
@@ -161,7 +162,7 @@ class JumpVpnService : VpnService() {
             // Ignorar
         }
 
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopForeground(Service.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 

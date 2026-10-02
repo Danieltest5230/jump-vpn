@@ -27,17 +27,23 @@ jobs:
           cd android
           sed -i -e 's/\r$//' gradlew
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace > build.log 2>&1 || {
+          ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log || {
             echo "::error::Fallo en la compilación de Gradle"
-            cat build.log | tail -n 120
-            echo "### ⚠️ Error de Compilación Gradle" >> $GITHUB_STEP_SUMMARY
-            echo '```text' >> $GITHUB_STEP_SUMMARY
-            tail -n 80 build.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -E "(e: |error:|FAILURE:|FAILED)" build.log | head -n 10 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
             exit 1
           }
 
+      - name: Subir Log en caso de fallo
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-failure-log
+          path: android/build.log
+
       - name: Subir Artefacto APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Jump-VPN-v4.6.2-Debug-APK

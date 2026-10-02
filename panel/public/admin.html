@@ -18,10 +18,13 @@
       <span class="brand-name">JUMP VPN</span>
       <span class="portal-tag">ADMIN PORTAL</span>
     </div>
-    <div id="navActions" style="display: none; gap: 12px; align-items: center;">
+    <div id="navActions" style="display: none; gap: 10px; align-items: center; flex-wrap: wrap;">
       <a href="/cambiar-clave" target="_blank" class="btn btn-sm btn-success">
-        🔑 Portal de Usuarios
+        🔑 Portal Clientes
       </a>
+      <button class="btn btn-sm btn-primary" id="btnToggleAdminPassCard">
+        🔐 Mi Clave Admin
+      </button>
       <button class="btn btn-sm btn-danger" id="btnLogout">Cerrar Sesión</button>
     </div>
   </header>
@@ -52,11 +55,36 @@
 
   <!-- Dashboard Principal de Gestión -->
   <div class="container" id="dashboardSection" style="display: none;">
+
+    <!-- Tarjeta Ocultable: Cambiar Contraseña Maestra de Administrador -->
+    <div class="card" id="cardAdminPassChange" style="display: none; border-color: #00E5FF;">
+      <h2>🔐 Cambiar mi Contraseña Maestra (Admin)</h2>
+      <p class="card-desc">Esta es tu contraseña de acceso al panel web y a tu cuenta de conexión ilimitada.</p>
+
+      <div class="alert alert-success" id="adminPassSuccess"></div>
+      <div class="alert alert-error" id="adminPassError"></div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="currentAdminPass">Contraseña Actual:</label>
+          <input type="password" id="currentAdminPass" placeholder="Tu contraseña actual">
+        </div>
+        <div class="form-group">
+          <label for="newAdminPass">Nueva Contraseña Maestra:</label>
+          <input type="password" id="newAdminPass" placeholder="Mínimo 5 caracteres">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button class="btn btn-primary" id="btnSaveAdminPass">Actualizar Mi Clave Admin</button>
+        <button class="btn btn-sm btn-danger" id="btnCloseAdminPassCard">Cerrar</button>
+      </div>
+    </div>
     
     <!-- Formulario para Crear Usuario -->
     <div class="card">
       <h2>➕ Crear Nuevo Usuario para Jump VPN</h2>
-      <p class="card-desc">Establece el usuario, contraseña inicial y el tiempo de vigencia.</p>
+      <p class="card-desc">Establece el usuario, contraseña inicial y si tendrá días limitados o acceso ilimitado.</p>
 
       <div class="alert alert-success" id="createUserSuccess"></div>
       <div class="alert alert-error" id="createUserError"></div>
@@ -74,13 +102,14 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label>Días de Duración / Límite de Tiempo:</label>
-          <input type="number" id="newDays" value="30" min="1" max="365">
+          <label>Vigencia / Límite de Tiempo:</label>
+          <input type="text" id="newDays" value="30">
           <div class="days-chips">
             <button type="button" class="chip-btn" data-days="7">7 Días</button>
             <button type="button" class="chip-btn" data-days="15">15 Días</button>
             <button type="button" class="chip-btn active" data-days="30">30 Días (1 Mes)</button>
             <button type="button" class="chip-btn" data-days="60">60 Días (2 Meses)</button>
+            <button type="button" class="chip-btn" data-days="unlimited" style="border-color: #00E5FF; color: #00E5FF; font-weight: 700;">♾️ Ilimitado (VIP / Admin)</button>
           </div>
         </div>
         <div class="form-group">
@@ -96,10 +125,10 @@
 
     <!-- Lista de Usuarios y Estado -->
     <div class="card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
         <div>
           <h2>👥 Usuarios Registrados</h2>
-          <p class="card-desc" style="margin-bottom: 0;">Supervisa los días restantes, vence y contraseñas actuales.</p>
+          <p class="card-desc" style="margin-bottom: 0;">Tu cuenta de administrador es permanente; los clientes tienen cuenta regresiva.</p>
         </div>
         <button class="btn btn-sm btn-primary" id="btnRefresh">🔄 Actualizar</button>
       </div>
@@ -133,6 +162,50 @@
     const dashboardSection = document.getElementById('dashboardSection');
     const navActions = document.getElementById('navActions');
     const usersTableBody = document.getElementById('usersTableBody');
+    const cardAdminPassChange = document.getElementById('cardAdminPassChange');
+
+    // Toggle tarjeta de cambio de contraseña maestra
+    document.getElementById('btnToggleAdminPassCard').addEventListener('click', () => {
+      cardAdminPassChange.style.display = cardAdminPassChange.style.display === 'none' ? 'block' : 'none';
+    });
+    document.getElementById('btnCloseAdminPassCard').addEventListener('click', () => {
+      cardAdminPassChange.style.display = 'none';
+    });
+
+    // Guardar nueva contraseña maestra de Admin
+    document.getElementById('btnSaveAdminPass').addEventListener('click', async () => {
+      const currentPassword = document.getElementById('currentAdminPass').value;
+      const newPassword = document.getElementById('newAdminPass').value;
+      const successDiv = document.getElementById('adminPassSuccess');
+      const errorDiv = document.getElementById('adminPassError');
+      successDiv.style.display = 'none';
+      errorDiv.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/admin/change-panel-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ currentPassword, newPassword })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          successDiv.style.display = 'block';
+          successDiv.textContent = data.message;
+          document.getElementById('currentAdminPass').value = '';
+          document.getElementById('newAdminPass').value = '';
+          loadUsers();
+        } else {
+          errorDiv.style.display = 'block';
+          errorDiv.textContent = data.error || 'Error al cambiar contraseña';
+        }
+      } catch (err) {
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = 'Error de conexión';
+      }
+    });
 
     // Presets de Días
     document.querySelectorAll('.chip-btn').forEach(btn => {
@@ -215,31 +288,45 @@
         
         let badgeClass = 'badge-active';
         let badgeText = 'ACTIVO';
+        let remainingText = `${u.remainingDays} días`;
+        let expDateText = '-';
 
-        if (u.status === 'EXPIRED' || u.remainingDays <= 0) {
+        if (u.isUnlimited) {
+          badgeClass = 'badge-active';
+          badgeText = '👑 ILIMITADO';
+          remainingText = '<span style="color: #00E5FF; font-weight: bold;">♾️ Permanente</span>';
+          expDateText = '<span style="color: #00E5FF;">Sin Vencimiento</span>';
+        } else if (u.status === 'EXPIRED' || u.remainingDays <= 0) {
           badgeClass = 'badge-expired';
           badgeText = 'EXPIRADO';
-        } else if (u.remainingDays <= 5) {
-          badgeClass = 'badge-warning';
-          badgeText = `${u.remainingDays} DÍAS`;
+          remainingText = '<span style="color: #EF4444;">0 días</span>';
+          expDateText = new Date(u.expiresAt).toLocaleDateString('es-ES', {
+            year: 'numeric', month: 'short', day: 'numeric'
+          });
+        } else {
+          if (u.remainingDays <= 5) {
+            badgeClass = 'badge-warning';
+            badgeText = `${u.remainingDays} DÍAS`;
+          }
+          expDateText = new Date(u.expiresAt).toLocaleDateString('es-ES', {
+            year: 'numeric', month: 'short', day: 'numeric'
+          });
         }
 
-        const expDate = new Date(u.expiresAt).toLocaleDateString('es-ES', {
-          year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
+        const isMasterAdmin = u.username === 'admin';
 
         tr.innerHTML = `
-          <td><span class="user-tag">${u.username}</span></td>
+          <td><span class="user-tag">${u.username} ${u.isUnlimited ? '👑' : ''}</span></td>
           <td><code style="color: #00E5FF;">${u.password}</code></td>
-          <td><strong>${u.remainingDays} días</strong></td>
-          <td>${expDate}</td>
+          <td>${remainingText}</td>
+          <td>${expDateText}</td>
           <td><span class="badge ${badgeClass}">${badgeText}</span></td>
           <td style="color: #94A3B8; font-size: 11px;">${u.note || '-'}</td>
           <td>
             <div style="display: flex; gap: 6px;">
-              <button class="btn btn-sm btn-success" onclick="renewUser('${u.username}')">+30 Días</button>
-              <button class="btn btn-sm btn-primary" onclick="copyUserData('${u.username}', '${u.password}', '${u.remainingDays}')">Copiar</button>
-              <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.username}')">Borrar</button>
+              ${!u.isUnlimited ? `<button class="btn btn-sm btn-success" onclick="renewUser('${u.username}')">+30 Días</button>` : ''}
+              <button class="btn btn-sm btn-primary" onclick="copyUserData('${u.username}', '${u.password}', '${u.isUnlimited ? 'Ilimitada' : u.remainingDays}')">Copiar</button>
+              ${!isMasterAdmin ? `<button class="btn btn-sm btn-danger" onclick="deleteUser('${u.username}')">Borrar</button>` : ''}
             </div>
           </td>
         `;
@@ -259,6 +346,8 @@
       successDiv.style.display = 'none';
       errorDiv.style.display = 'none';
 
+      const isUnlimited = days === 'unlimited' || days === '0';
+
       try {
         const res = await fetch('/api/admin/users', {
           method: 'POST',
@@ -266,13 +355,15 @@
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ username, password, days, note })
+          body: JSON.stringify({ username, password, days, note, isUnlimited })
         });
         const data = await res.json();
 
         if (res.ok) {
           successDiv.style.display = 'block';
-          successDiv.textContent = `¡Usuario '${username}' creado con éxito por ${days} días!`;
+          successDiv.textContent = isUnlimited
+            ? `¡Usuario '${username}' creado con éxito con ACCESO ILIMITADO PERMANENTE!`
+            : `¡Usuario '${username}' creado con éxito por ${days} días!`;
           document.getElementById('newUsername').value = '';
           document.getElementById('newPassword').value = '';
           loadUsers();
@@ -299,7 +390,6 @@
           body: JSON.stringify({ extraDays: 30 })
         });
         if (res.ok) {
-          alert(`Usuario '${username}' renovado con éxito.`);
           loadUsers();
         }
       } catch (err) {
@@ -325,7 +415,8 @@
 
     // Copiar mensaje para enviar por WhatsApp
     window.copyUserData = (user, pass, days) => {
-      const msg = `⚡ *Datos de Conexión Jump VPN* ⚡\n\n👤 *Usuario:* ${user}\n🔑 *Contraseña:* ${pass}\n⏳ *Vigencia:* ${days} días\n\n👉 Puedes cambiar tu contraseña en cualquier momento aquí:\n${window.location.origin}/cambiar-clave`;
+      const vigencia = days === 'Ilimitada' ? 'Permanente (Sin vencimiento)' : `${days} días`;
+      const msg = `⚡ *Datos de Conexión Jump VPN* ⚡\n\n👤 *Usuario:* ${user}\n🔑 *Contraseña:* ${pass}\n⏳ *Vigencia:* ${vigencia}\n\n👉 Puedes cambiar tu contraseña en cualquier momento aquí:\n${window.location.origin}/cambiar-clave`;
       navigator.clipboard.writeText(msg);
       alert('¡Datos copiados al portapapeles! Ya puedes pegarlos en WhatsApp o enviárselos al cliente.');
     };

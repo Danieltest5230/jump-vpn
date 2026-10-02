@@ -269,7 +269,7 @@
                 android:orientation="horizontal"
                 android:weightSum="3">
 
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnOpenPayload"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="0dp"
@@ -281,7 +281,7 @@
                     android:textSize="11sp"
                     app:strokeColor="@color/border_glass" />
 
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnServers"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="0dp"
@@ -294,7 +294,7 @@
                     android:textSize="11sp"
                     app:strokeColor="@color/border_glass" />
 
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnClearLogs"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="0dp"

@@ -48,7 +48,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Jump"
         android:usesCleartextTraffic="true"
-        tools:targetApi="35">
+        tools:targetApi="34">
 
         <!-- Actividad Principal (Dashboard de Conexión) -->
         <activity
