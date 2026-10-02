@@ -15,9 +15,6 @@ android {
         versionName = "4.6.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        ndk {
-            abiFilters.addAll(setOf("arm64-v8a", "armeabi-v7a"))
-        }
     }
 
     buildTypes {
