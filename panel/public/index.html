@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jump VPN - Portal Oficial</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .hero-container {
+      max-width: 600px;
+      margin: 40px auto;
+      text-align: center;
+      padding: 20px;
+    }
+    .hero-logo {
+      font-size: 54px;
+      margin-bottom: 8px;
+      filter: drop-shadow(0 0 15px #00E5FF);
+    }
+    .hero-title {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      background: linear-gradient(135deg, #00E5FF, #00B0FF);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .hero-subtitle {
+      color: #94A3B8;
+      font-size: 15px;
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+    .portal-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 540px) {
+      .portal-cards {
+        grid-template-columns: 1fr;
+      }
+    }
+    .portal-btn-card {
+      background: #0E1626;
+      border: 1px solid rgba(0, 229, 255, 0.2);
+      border-radius: 16px;
+      padding: 24px 18px;
+      text-decoration: none;
+      color: #F8FAFC;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+    .portal-btn-card:hover {
+      transform: translateY(-4px);
+      border-color: #00E5FF;
+      box-shadow: 0 0 25px rgba(0, 229, 255, 0.3);
+    }
+    .card-icon {
+      font-size: 36px;
+    }
+    .card-title {
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .card-subtitle {
+      font-size: 12px;
+      color: #94A3B8;
+      line-height: 1.4;
+    }
+    .apk-banner {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="hero-container">
+    <div class="hero-logo">⚡</div>
+    <h1 class="hero-title">JUMP VPN</h1>
+    <p class="hero-subtitle">Plataforma oficial de tunelización segura, gestión de usuarios y acceso a internet para dispositivos móviles.</p>
+
+    <div class="portal-cards">
+      <!-- Portal de Usuarios -->
+      <a href="/cambiar-clave" class="portal-btn-card">
+        <span class="card-icon">🔑</span>
+        <span class="card-title">Portal del Usuario</span>
+        <span class="card-subtitle">Cambia tu contraseña personal y consulta cuántos días de internet te quedan.</span>
+      </a>
+
+      <!-- Panel del Administrador -->
+      <a href="/admin" class="portal-btn-card">
+        <span class="card-icon">🛠️</span>
+        <span class="card-title">Panel de Control</span>
+        <span class="card-subtitle">Acceso exclusivo para el administrador: crear usuarios, fijar vigencias y renovar.</span>
+      </a>
+    </div>
+
+    <div class="apk-banner">
+      <div style="font-size: 13px; font-weight: 700; color: #10B981; margin-bottom: 4px;">
+        📲 Aplicación Android Jump v4.6.2
+      </div>
+      <div style="font-size: 12px; color: #94A3B8;">
+        Código fuente y compilaciones automáticas disponibles en tu GitHub.
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

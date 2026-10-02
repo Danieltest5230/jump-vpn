@@ -298,6 +298,10 @@ app.get('/api/user/check/:username', (req, res) => {
 });
 
 // Rutas de páginas HTML
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
