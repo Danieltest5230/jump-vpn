@@ -98,8 +98,8 @@ class SshTunnelClient(
 
             if (session?.isConnected == true) {
                 onLog("SSH Conectado exitosamente!")
-                val boundPort = session?.setPortForwardingD(localSocksPort)
-                onLog("Enrutador SOCKS5 activo en 127.0.0.1:$boundPort")
+                val boundPort = session?.setPortForwardingL(localSocksPort, "127.0.0.1", profile.serverPort)
+                onLog("Enrutador de puerto local activo en 127.0.0.1:$boundPort")
                 isRunning = true
             } else {
                 throw IllegalStateException("No se pudo establecer la sesión SSH")

@@ -39,10 +39,13 @@ jobs:
             exit 1
           }
           echo "Buscando APKs generados..."
-          find . -name "*.apk"
           mkdir -p ../dist
-          find . -name "*.apk" -exec cp -v {} ../dist/Jump-VPN-v4.6.2.apk \;
-          ls -la ../dist
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp -v app/build/outputs/apk/debug/app-debug.apk ../dist/Jump-VPN-v4.6.2.apk
+          else
+            find . -name "*.apk" -exec cp -v {} ../dist/Jump-VPN-v4.6.2.apk \;
+          fi
+          ls -lh ../dist/
 
       - name: Subir Log de Compilación
         if: always()
