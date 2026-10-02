@@ -25,8 +25,17 @@ jobs:
       - name: Compilar APK (Debug)
         run: |
           cd android
+          sed -i -e 's/\r$//' gradlew
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace > build.log 2>&1 || {
+            echo "::error::Fallo en la compilación de Gradle"
+            cat build.log | tail -n 120
+            echo "### ⚠️ Error de Compilación Gradle" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            tail -n 80 build.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          }
 
       - name: Subir Artefacto APK
         uses: actions/upload-artifact@v4
