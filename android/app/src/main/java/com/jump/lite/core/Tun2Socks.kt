@@ -61,7 +61,7 @@ class Tun2Socks(
     }
 
     private fun processTunTraffic() {
-        val vpnFd = vpnInterface.fileDescriptor ?: return
+        val vpnFd = vpnInterface.fileDescriptor
         val inputStream = FileInputStream(vpnFd)
         val outputStream = FileOutputStream(vpnFd)
         val packetBuffer = ByteArray(32768)
