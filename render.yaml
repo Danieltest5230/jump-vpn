@@ -3,6 +3,7 @@ services:
     name: jump-vpn-panel
     runtime: node
     plan: free
+    rootDir: panel
     buildCommand: npm install
     startCommand: node server.js
     healthCheckPath: /health

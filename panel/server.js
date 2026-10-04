@@ -477,6 +477,16 @@ app.get('/cambiar-clave', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'cambiar-clave.html'));
 });
 
+// Ruta de Health Check para Render y Monitores de Uptime
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    app: 'Jump VPN Panel',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Descarga directa del APK de la App Jump VPN
 app.get('/descargar', (req, res) => {
   res.redirect('https://github.com/Danieltest5230/jump-vpn/releases/download/v4.6.2/Jump-VPN-v4.6.2.apk');
@@ -485,6 +495,46 @@ app.get('/descargar', (req, res) => {
 app.get('/download', (req, res) => {
   res.redirect('https://github.com/Danieltest5230/jump-vpn/releases/download/v4.6.2/Jump-VPN-v4.6.2.apk');
 });
+
+// ========================================================
+// SISTEMA KEEP-ALIVE 24/7 (RENDER ANTI-SLEEP)
+// ========================================================
+let externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL;
+
+if (externalUrl) {
+  if (!externalUrl.startsWith('http://') && !externalUrl.startsWith('https://')) {
+    externalUrl = `https://${externalUrl}`;
+  }
+  externalUrl = externalUrl.replace(/\/+$/, '');
+
+  const https = require('https');
+  const http = require('http');
+  const PING_INTERVAL_MS = 7 * 60 * 1000; // 7 minutos (Render duerme tras 15 min de inactividad)
+
+  const doPing = () => {
+    try {
+      const pingUrl = `${externalUrl}/health`;
+      const client = externalUrl.startsWith('https') ? https : http;
+
+      client.get(pingUrl, (res) => {
+        if (res.statusCode === 200) {
+          console.log(`[Keep-Alive 24/7] Heartbeat exitoso a ${pingUrl} (200 OK)`);
+        } else {
+          console.log(`[Keep-Alive 24/7] Heartbeat respondió con estado: ${res.statusCode}`);
+        }
+      }).on('error', (err) => {
+        console.warn(`[Keep-Alive 24/7] Aviso en auto-ping: ${err.message}`);
+      });
+    } catch (e) {
+      console.warn(`[Keep-Alive 24/7] Excepción en ping: ${e.message}`);
+    }
+  };
+
+  console.log(`[Keep-Alive 24/7] Activado. Auto-ping programado cada 7 min hacia: ${externalUrl}`);
+  // Primer ping de verificación a los 30 segundos de arrancar
+  setTimeout(doPing, 30 * 1000);
+  setInterval(doPing, PING_INTERVAL_MS);
+}
 
 app.listen(PORT, () => {
   console.log(`====================================================`);
