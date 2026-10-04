@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.jump.lite.core.JumpVpnService
+import com.jump.lite.model.VpnProfile
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
@@ -14,8 +15,16 @@ class BootReceiver : BroadcastReceiver() {
             val startOnBoot = prefs.getBoolean("start_on_boot", false)
 
             if (startOnBoot) {
+                val profileJson = prefs.getString("active_profile_json", null)
+                val profile = if (!profileJson.isNullOrEmpty()) {
+                    VpnProfile.fromJson(profileJson)
+                } else {
+                    VpnProfile.createDefault()
+                }
+
                 val serviceIntent = Intent(context, JumpVpnService::class.java).apply {
                     this.action = JumpVpnService.ACTION_CONNECT
+                    putExtra(JumpVpnService.EXTRA_PROFILE, profile)
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     context.startForegroundService(serviceIntent)

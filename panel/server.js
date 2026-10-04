@@ -3,17 +3,13 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
-const { exec } = require('child_process');
+const crypto = require('crypto');
+const { spawn } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'jump_vpn_super_secret_jwt_key_2026';
 const DEFAULT_ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const DEFAULT_ADMIN_PASS = process.env.ADMIN_PASS || 'jumpadmin2026';
-
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Directorios y Archivos de Base de Datos
 const DATA_DIR = path.join(__dirname, 'data');
@@ -22,6 +18,62 @@ const ADMIN_FILE = path.join(DATA_DIR, 'admin.json');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// Generador / Lector seguro de JWT_SECRET persistente para evitar secretos fijos
+function getJwtSecret() {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  const secretFile = path.join(DATA_DIR, '.jwt_secret');
+  if (fs.existsSync(secretFile)) {
+    try {
+      const s = fs.readFileSync(secretFile, 'utf8').trim();
+      if (s) return s;
+    } catch (e) {}
+  }
+  const generated = crypto.randomBytes(32).toString('hex');
+  try {
+    fs.writeFileSync(secretFile, generated, { mode: 0o600 });
+  } catch (e) {}
+  return generated;
+}
+
+const JWT_SECRET = getJwtSecret();
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Cabeceras de seguridad HTTP
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// Rate limiting para mitigar ataques de fuerza bruta
+const rateLimitMap = new Map();
+function rateLimiter(limit = 10, windowMs = 60000) {
+  return (req, res, next) => {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const clientRecord = rateLimitMap.get(ip) || { count: 0, resetTime: now + windowMs };
+
+    if (now > clientRecord.resetTime) {
+      clientRecord.count = 1;
+      clientRecord.resetTime = now + windowMs;
+    } else {
+      clientRecord.count++;
+    }
+
+    rateLimitMap.set(ip, clientRecord);
+
+    if (clientRecord.count > limit) {
+      return res.status(429).json({ error: 'Demasiadas solicitudes. Espera un momento antes de reintentar.' });
+    }
+    next();
+  };
 }
 
 // Helpers de Credenciales Maestras del Administrador
@@ -80,40 +132,51 @@ function saveUsers(users) {
   fs.writeFileSync(DB_FILE, JSON.stringify(users, null, 2), 'utf8');
 }
 
-// Helper para sincronizar usuario en Linux VPS
+// Helper para sincronizar usuario en Linux VPS de forma segura (sin inyección RCE)
 function syncLinuxUser(username, password, expireDateISO) {
   if (process.platform === 'win32') {
     console.log(`[Windows Dev] Simulación Linux: ${username} (Vencimiento: ${expireDateISO || 'ILIMITADO'})`);
     return;
   }
 
-  let cmd = `
-    id -u ${username} >/dev/null 2>&1 || useradd -M -s /bin/false ${username}
-    echo "${username}:${password}" | chpasswd
-  `;
+  const safeUser = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+  if (!safeUser) return;
 
-  if (expireDateISO) {
-    const dateFormatted = expireDateISO.split('T')[0];
-    cmd += `\nusermod -e ${dateFormatted} ${username}`;
-  } else {
-    // Cuenta ilimitada sin vencimiento
-    cmd += `\nusermod -e "" ${username}`;
-  }
+  // 1. Crear usuario si no existe (usando spawn con array de argumentos, sin shell)
+  const userAdd = spawn('useradd', ['-M', '-s', '/bin/false', safeUser]);
 
-  exec(cmd, (error) => {
-    if (error) {
-      console.error(`Error al sincronizar usuario Linux ${username}:`, error.message);
+  userAdd.on('close', () => {
+    // 2. Establecer contraseña vía stdin hacia chpasswd de forma aislada
+    const chpasswd = spawn('chpasswd');
+    chpasswd.stdin.write(`${safeUser}:${password}\n`);
+    chpasswd.stdin.end();
+
+    chpasswd.on('close', (code) => {
+      if (code === 0) {
+        console.log(`Usuario Linux ${safeUser} actualizado.`);
+      } else {
+        console.error(`chpasswd retornó código ${code} para ${safeUser}`);
+      }
+    });
+
+    // 3. Expiración de cuenta si aplica (validación estricta YYYY-MM-DD)
+    if (expireDateISO) {
+      const dateFormatted = expireDateISO.split('T')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateFormatted)) {
+        spawn('usermod', ['-e', dateFormatted, safeUser]);
+      }
     } else {
-      console.log(`Usuario Linux ${username} actualizado.`);
+      spawn('usermod', ['-e', '', safeUser]);
     }
   });
 }
 
 function removeLinuxUser(username) {
   if (process.platform === 'win32') return;
-  exec(`userdel -r ${username}`, (err) => {
-    if (err) console.error(`Error al borrar usuario Linux ${username}:`, err.message);
-  });
+  const safeUser = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+  if (safeUser) {
+    spawn('userdel', ['-r', safeUser]);
+  }
 }
 
 // Middleware de autenticación para Administrador
@@ -138,8 +201,8 @@ function authAdmin(req, res, next) {
 // RUTAS DE ADMINISTRADOR
 // ========================================================
 
-// Login de Admin
-app.post('/api/admin/login', (req, res) => {
+// Login de Admin con Rate Limiting anti-fuerza bruta
+app.post('/api/admin/login', rateLimiter(5, 60000), (req, res) => {
   const { username, password } = req.body;
   const adminCreds = getAdminCredentials();
 
@@ -270,12 +333,12 @@ app.post('/api/admin/users', authAdmin, (req, res) => {
 
 // Renovar usuario (+N días)
 app.put('/api/admin/users/:username/renew', authAdmin, (req, res) => {
-  const { username } = req.params;
+  const cleanUsername = req.params.username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
   const { extraDays } = req.body;
   const daysToAdd = parseInt(extraDays || 30, 10);
 
   const users = getUsers();
-  const user = users.find(u => u.username === username);
+  const user = users.find(u => u.username === cleanUsername);
 
   if (!user) {
     return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -302,27 +365,27 @@ app.put('/api/admin/users/:username/renew', authAdmin, (req, res) => {
 
 // Eliminar usuario
 app.delete('/api/admin/users/:username', authAdmin, (req, res) => {
-  const { username } = req.params;
+  const cleanUsername = req.params.username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
   let users = getUsers();
   const initialLength = users.length;
 
-  users = users.filter(u => u.username !== username);
+  users = users.filter(u => u.username !== cleanUsername);
   if (users.length === initialLength) {
     return res.status(404).json({ error: 'Usuario no encontrado' });
   }
 
   saveUsers(users);
-  removeLinuxUser(username);
+  removeLinuxUser(cleanUsername);
 
-  res.json({ success: true, message: `Usuario ${username} eliminado` });
+  res.json({ success: true, message: `Usuario ${cleanUsername} eliminado` });
 });
 
 // ========================================================
 // RUTAS PÚBLICAS DE AUTOGESTIÓN DE USUARIOS
 // ========================================================
 
-// Cambiar contraseña (funciona para clientes y para el admin en su teléfono)
-app.post('/api/user/change-password', (req, res) => {
+// Cambiar contraseña con Rate Limiting
+app.post('/api/user/change-password', rateLimiter(5, 60000), (req, res) => {
   const { username, currentPassword, newPassword } = req.body;
 
   if (!username || !currentPassword || !newPassword) {

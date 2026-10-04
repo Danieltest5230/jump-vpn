@@ -4,4 +4,6 @@ build/
 *.apk
 *.log
 data/users.json
+panel/data/.jwt_secret
+panel/data/admin.json
 .DS_Store

@@ -18,11 +18,9 @@ import com.jump.lite.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.io.FileInputStream
-import java.io.FileOutputStream
+import java.net.DatagramSocket
+import java.net.Socket
 
 class JumpVpnService : VpnService() {
 
@@ -42,18 +40,32 @@ class JumpVpnService : VpnService() {
 
         var isServiceRunning = false
             private set
+
+        @Volatile
+        private var instance: JumpVpnService? = null
+
+        /**
+         * Protege sockets de transporte para que no sean interceptados por la interfaz TUN virtual,
+         * previniendo bucles infinitos de red y desconexiones repentinas.
+         */
+        fun protectSocket(socket: Socket): Boolean {
+            return instance?.protect(socket) ?: true
+        }
+
+        fun protectSocket(socket: DatagramSocket): Boolean {
+            return instance?.protect(socket) ?: true
+        }
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private var sshClient: com.jump.lite.core.tunnel.SshTunnelClient? = null
-
-    private var bytesReceived: Long = 0
-    private var bytesSent: Long = 0
+    private var tun2socks: Tun2Socks? = null
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         createNotificationChannel()
     }
 
@@ -87,14 +99,18 @@ class JumpVpnService : VpnService() {
 
         serviceScope.launch {
             try {
-                sendLog("Configurando interfaz de red virtual TUN...")
+                sendLog("Configurando interfaz de red virtual TUN con protección Anti-Leak...")
                 val builder = Builder()
                     .setSession("Jump VPN")
                     .addAddress("10.0.0.2", 24)
                     .addRoute("0.0.0.0", 0)
+                    // Mitigación de Fuga IPv6: Enrutar IPv6 hacia la interfaz virtual para que no escape a la red celular
+                    .addAddress("fd00::2", 120)
+                    .addRoute("::", 0)
                     .addDnsServer(profile.dnsPrimary.ifEmpty { "1.1.1.1" })
                     .addDnsServer(profile.dnsSecondary.ifEmpty { "1.0.0.1" })
                     .setMtu(1500)
+                    .setBlocking(true)
 
                 vpnInterface = builder.establish()
 
@@ -102,7 +118,7 @@ class JumpVpnService : VpnService() {
                     throw IllegalStateException("El sistema Android rechazó la interfaz TUN.")
                 }
 
-                sendLog("Interfaz TUN creada exitosamente (10.0.0.2/24)")
+                sendLog("✓ Interfaz TUN creada exitosamente (10.0.0.2/24 - fd00::2/120)")
                 broadcastState(ConnectionState.INJECTING_PAYLOAD)
 
                 // Iniciar cliente de túnel SSH
@@ -115,35 +131,23 @@ class JumpVpnService : VpnService() {
                 broadcastState(ConnectionState.AUTHENTICATING)
                 sshClient?.start()
 
+                // Iniciar motor de enrutamiento Tun2Socks para procesar paquetes reales y DNS
+                tun2socks = Tun2Socks(
+                    vpnInterface = vpnInterface!!,
+                    localSocksPort = 1080,
+                    dnsServerIp = profile.dnsPrimary.ifEmpty { "1.1.1.1" },
+                    onLog = { msg -> sendLog(msg) },
+                    onStats = { rx, tx -> broadcastStats(rx, tx) }
+                )
+                tun2socks?.start()
+
                 broadcastState(ConnectionState.CONNECTED)
                 updateNotification("Conectado | ${profile.name}", ConnectionState.CONNECTED)
-                sendLog("✓ CONECTADO: Túnel seguro activo. Todo el tráfico está protegido.")
-
-                // Bucle de lectura y estadísticas de tráfico
-                startTrafficMonitor()
+                sendLog("✓ CONECTADO: Túnel seguro activo. Tráfico IP y DNS protegido contra fugas.")
 
             } catch (e: Exception) {
                 sendLog("ERROR CRÍTICO: ${e.message}")
                 disconnectVpn("Fallo en la conexión: ${e.message}")
-            }
-        }
-    }
-
-    private fun startTrafficMonitor() {
-        serviceScope.launch {
-            val vpnFd = vpnInterface?.fileDescriptor ?: return@launch
-            val inputStream = FileInputStream(vpnFd)
-            val outputStream = FileOutputStream(vpnFd)
-            val buffer = ByteArray(32768)
-
-            while (isActive && isServiceRunning) {
-                // Simulación/Cálculo de flujo de paquetes y estadísticas
-                delay(1000)
-                if (sshClient?.isConnected() == true) {
-                    bytesReceived += (1024..8192).random()
-                    bytesSent += (512..4096).random()
-                    broadcastStats(bytesReceived, bytesSent)
-                }
             }
         }
     }
@@ -154,6 +158,8 @@ class JumpVpnService : VpnService() {
         broadcastState(ConnectionState.DISCONNECTED)
 
         try {
+            tun2socks?.stop()
+            tun2socks = null
             sshClient?.stop()
             sshClient = null
             vpnInterface?.close()
@@ -169,6 +175,7 @@ class JumpVpnService : VpnService() {
     override fun onDestroy() {
         disconnectVpn("Servicio destruido.")
         serviceJob.cancel()
+        instance = null
         super.onDestroy()
     }
 

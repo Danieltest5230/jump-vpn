@@ -3,6 +3,8 @@ package com.jump.lite.core.tunnel
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 import com.jcraft.jsch.SocketFactory
+import com.jump.lite.core.JumpVpnService
+import com.jump.lite.core.payload.PayloadEngine
 import com.jump.lite.model.TunnelMode
 import com.jump.lite.model.VpnProfile
 import java.io.InputStream
@@ -32,10 +34,23 @@ class SshTunnelClient(
             config["PreferredAuthentications"] = "password,keyboard-interactive"
             session?.setConfig(config)
 
-            // Configurar SocketFactory según el modo de túnel
+            // Configurar SocketFactory según el modo de túnel, protegiendo todos los sockets salientes
             when (profile.tunnelMode) {
                 TunnelMode.SSH_DIRECT -> {
                     onLog("Modo: Conexión directa TCP...")
+                    session?.setSocketFactory(object : SocketFactory {
+                        private var sock: Socket? = null
+                        override fun createSocket(host: String?, port: Int): Socket {
+                            val s = Socket()
+                            JumpVpnService.protectSocket(s)
+                            s.connect(InetSocketAddress(host, port), 12000)
+                            s.tcpNoDelay = true
+                            sock = s
+                            return s
+                        }
+                        override fun getInputStream(socket: Socket?): InputStream = socket!!.getInputStream()
+                        override fun getOutputStream(socket: Socket?): OutputStream = socket!!.getOutputStream()
+                    })
                 }
                 TunnelMode.SSH_SSL_SNI -> {
                     onLog("Modo: SSL/TLS con SNI Bug: ${profile.sniHost}")
@@ -73,14 +88,25 @@ class SshTunnelClient(
                         private var sock: Socket? = null
                         override fun createSocket(host: String?, port: Int): Socket {
                             val s = Socket()
-                            s.connect(
-                                InetSocketAddress(profile.remoteProxyHost, profile.remoteProxyPort),
-                                10000
-                            )
+                            JumpVpnService.protectSocket(s)
+                            val proxyHost = if (profile.remoteProxyHost.isNotEmpty()) profile.remoteProxyHost else profile.serverHost
+                            val proxyPort = if (profile.remoteProxyPort > 0) profile.remoteProxyPort else 8080
+                            onLog("Conectando a Proxy: $proxyHost:$proxyPort...")
+                            s.connect(InetSocketAddress(proxyHost, proxyPort), 12000)
+                            s.tcpNoDelay = true
+
                             val out = s.getOutputStream()
-                            val payload = com.jump.lite.core.payload.PayloadEngine.parse(profile.payload, profile)
+                            val payload = PayloadEngine.parse(profile.payload, profile)
+                            onLog("Inyectando Payload HTTP...")
                             out.write(payload.toByteArray(Charsets.UTF_8))
                             out.flush()
+
+                            // Consumir la respuesta HTTP 200 Connection established del proxy
+                            // para no romper la identificación del banner SSH posterior
+                            val responseHeaders = WebSocketTunnel.readHeadersExact(s.getInputStream())
+                            val statusLine = responseHeaders.lines().firstOrNull() ?: ""
+                            onLog("Proxy respuesta: $statusLine")
+
                             sock = s
                             return s
                         }
@@ -97,9 +123,10 @@ class SshTunnelClient(
             session?.connect(30000)
 
             if (session?.isConnected == true) {
-                onLog("SSH Conectado exitosamente!")
-                val boundPort = session?.setPortForwardingL(localSocksPort, "127.0.0.1", profile.serverPort)
-                onLog("Enrutador de puerto local activo en 127.0.0.1:$boundPort")
+                onLog("✓ SSH Conectado exitosamente!")
+                // Configurar SOCKS5 dinámico real en localSocksPort
+                val boundPort = session?.setPortForwardingD("127.0.0.1", localSocksPort)
+                onLog("✓ Enrutador SOCKS5 dinámico activo en 127.0.0.1:$boundPort")
                 isRunning = true
             } else {
                 throw IllegalStateException("No se pudo establecer la sesión SSH")
@@ -114,6 +141,11 @@ class SshTunnelClient(
 
     fun stop() {
         isRunning = false
+        try {
+            session?.delPortForwardingD(localSocksPort)
+        } catch (e: Exception) {
+            // Ignorar
+        }
         try {
             session?.disconnect()
             session = null

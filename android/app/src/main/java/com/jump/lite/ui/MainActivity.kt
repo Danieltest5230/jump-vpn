@@ -87,6 +87,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        activeProfile = loadPersistedProfile()
+
         initViews()
         setupTunnelModeSpinner()
         setupListeners()
@@ -149,8 +151,12 @@ class MainActivity : AppCompatActivity() {
 
         spTunnelMode.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                activeProfile.tunnelMode = TunnelMode.fromOrdinal(position)
-                updateProfileUi()
+                val newMode = TunnelMode.fromOrdinal(position)
+                if (activeProfile.tunnelMode != newMode) {
+                    activeProfile.tunnelMode = newMode
+                    saveActiveProfile()
+                    updateProfileUi()
+                }
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
@@ -291,15 +297,32 @@ class MainActivity : AppCompatActivity() {
             val newPayload = data?.getStringExtra("payload")
             if (newPayload != null) {
                 activeProfile.payload = newPayload
+                saveActiveProfile()
                 appendLog("Payload actualizado: ${newPayload.take(30)}...")
             }
         } else if (requestCode == REQUEST_SERVER && resultCode == Activity.RESULT_OK) {
             val json = data?.getStringExtra("profile_json")
             if (json != null) {
                 activeProfile = VpnProfile.fromJson(json)
+                saveActiveProfile()
                 updateProfileUi()
                 appendLog("Perfil de servidor actualizado: ${activeProfile.serverHost}")
             }
         }
+    }
+
+    private fun loadPersistedProfile(): VpnProfile {
+        val prefs = getSharedPreferences("jump_settings", Context.MODE_PRIVATE)
+        val json = prefs.getString("active_profile_json", null)
+        return if (!json.isNullOrEmpty()) {
+            VpnProfile.fromJson(json)
+        } else {
+            VpnProfile.createDefault()
+        }
+    }
+
+    private fun saveActiveProfile() {
+        val prefs = getSharedPreferences("jump_settings", Context.MODE_PRIVATE)
+        prefs.edit().putString("active_profile_json", activeProfile.toJson()).apply()
     }
 }

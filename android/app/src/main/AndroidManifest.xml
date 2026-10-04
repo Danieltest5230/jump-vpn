@@ -18,28 +18,18 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- 3. Permisos de Localización del Usuario -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
-    <!-- 4. Permisos de Sistema, Rendimiento y Persistencia -->
+    <!-- 3. Permisos de Sistema, Rendimiento y Persistencia -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- 5. Permisos de Almacenamiento (Importación y Exportación de Configs) -->
+    <!-- 4. Permisos de Almacenamiento (Compatibilidad legacy para perfiles .jump) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="29"
-        tools:ignore="ScopedStorage" />
-
-    <!-- 6. Permisos Publicitarios y Métricas de Ecosistema -->
-    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -47,7 +37,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Jump"
-        android:usesCleartextTraffic="true"
         tools:targetApi="34">
 
         <!-- Actividad Principal (Dashboard de Conexión) -->
